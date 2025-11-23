@@ -1,0 +1,94 @@
+<?php
+require_once __DIR__ . '/includes/functions.php';
+require_login();
+
+$user = current_user();
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Location: create_project.php');
+    exit;
+}
+
+$name = trim($_POST['project_name'] ?? '');
+$description = trim($_POST['project_description'] ?? '');
+
+if ($name === '') {
+    $_SESSION['error'] = "Le nom du projet est obligatoire.";
+    header('Location: create_project.php');
+    exit;
+}
+
+// 处理成员
+$members = [];
+$member_names = $_POST['member_name'] ?? [];
+$member_emails = $_POST['member_email'] ?? [];
+
+for ($i = 0; $i < count($member_emails); $i++) {
+    $m_name = trim($member_names[$i] ?? '');
+    $m_email = trim($member_emails[$i] ?? '');
+    if ($m_email === '' && $m_name === '') {
+        continue;
+    }
+    if (!filter_var($m_email, FILTER_VALIDATE_EMAIL)) {
+        continue; // 简单过滤无效 email
+    }
+    $members[] = [
+        'name' => $m_name ?: $m_email,
+        'email' => strtolower($m_email),
+    ];
+}
+
+// 确保创建人也在成员列表中（按 email 去重）
+$creator_email = strtolower($user['email']);
+$already_in = false;
+foreach ($members as $m) {
+    if (strtolower($m['email']) === $creator_email) {
+        $already_in = true;
+        break;
+    }
+}
+if (!$already_in) {
+    $members[] = [
+        'name' => $user['name'],
+        'email' => $creator_email,
+    ];
+}
+
+// 处理任务
+$tasks = [];
+$task_titles = $_POST['task_title'] ?? [];
+$task_assigned_to = $_POST['task_assigned_to'] ?? [];
+
+for ($i = 0; $i < count($task_titles); $i++) {
+    $title = trim($task_titles[$i] ?? '');
+    $assigned_email = trim($task_assigned_to[$i] ?? '');
+    if ($title === '') {
+        continue;
+    }
+    $tasks[] = [
+        'id' => generate_id('t_'),
+        'title' => $title,
+        'assigned_to' => strtolower($assigned_email),
+        'status' => 'todo',
+    ];
+}
+
+$projects = load_projects();
+
+$project = [
+    'id' => generate_id('p_'),
+    'name' => $name,
+    'description' => $description,
+    'creator_id' => $user['id'],
+    'creator_name' => $user['name'],
+    'creator_email' => $creator_email,
+    'members' => $members,
+    'tasks' => $tasks,
+    'created_at' => date('c'),
+];
+
+$projects[] = $project;
+save_projects($projects);
+
+header('Location: dashboard.php');
+exit;
