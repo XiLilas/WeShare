@@ -1,5 +1,1060 @@
+//test
 public class Main {
     public static void main(String[] args) {
         System.out.println("Hello world");
     }
 }
+
+
+//code projet
+
+'create_project.php'
+<?php
+$page_title = 'Créer un projet';
+require_once __DIR__ . '/includes/functions.php';
+require_login();
+
+$user = current_user();
+?>
+
+<?php include __DIR__ . '/includes/header.php'; ?>
+
+<section class="form-page">
+    <h1>Créer un nouveau projet</h1>
+    <p>Utilisez ce formulaire pour créer un projet de colocation, de cours ou de voyage et répartir les tâches.</p>
+
+    <form method="post" action="save_project.php" class="form-block">
+        <div class="form-group">
+            <label for="project_name">Nom du projet</label>
+            <input type="text" id="project_name" name="project_name" required>
+        </div>
+
+        <div class="form-group">
+            <label for="project_description">Description (facultatif)</label>
+            <textarea id="project_description" name="project_description" rows="3"
+                placeholder="Ex : Organisation des tâches ménagères de l’appartement..."></textarea>
+        </div>
+
+        <h2>Membres invités</h2>
+        <p class="hint">
+            Invitez vos colocataires, camarades de classe ou amis pour le voyage.
+            Vous êtes automatiquement inclus comme créateur.
+        </p>
+
+        <div id="members-container">
+            <div class="member-row">
+                <input type="text" name="member_name[]" placeholder="Nom du membre">
+                <input type="email" name="member_email[]" placeholder="Email du membre">
+            </div>
+        </div>
+        <button type="button" class="btn-secondary" onclick="addMemberRow()">+ Ajouter un membre</button>
+
+        <h2>Tâches du projet</h2>
+        <p class="hint">
+            Créez les tâches et (facultatif) indiquez l’email de la personne responsable.
+            Exemple : “Sortir les poubelles”, “Préparer le plan du voyage”...
+        </p>
+
+        <div id="tasks-container">
+            <div class="task-row">
+                <input type="text" name="task_title[]" placeholder="Titre de la tâche">
+                <input type="email" name="task_assigned_to[]"
+                    placeholder="Email de la personne responsable (facultatif)">
+            </div>
+        </div>
+        <button type="button" class="btn-secondary" onclick="addTaskRow()">+ Ajouter une tâche</button>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Enregistrer le projet</button>
+            <a href="dashboard.php" class="btn-link">Annuler</a>
+        </div>
+    </form>
+</section>
+
+<?php include __DIR__ . '/includes/footer.php'; ?>
+
+
+'dashboard.php'
+<?php
+$page_title = 'Mes projets';
+require_once __DIR__ . '/includes/functions.php';
+require_login();
+
+$user = current_user();
+$email = strtolower($user['email']);
+
+$projects = load_projects();
+
+$created_projects = [];
+$member_projects = [];
+
+foreach ($projects as $project) {
+    if (strtolower($project['creator_email']) === $email) {
+        $created_projects[] = $project;
+        continue;
+    }
+
+    $is_member = false;
+    foreach ($project['members'] as $member) {
+        if (strtolower($member['email']) === $email) {
+            $is_member = true;
+            break;
+        }
+    }
+    if ($is_member) {
+        $member_projects[] = $project;
+    }
+}
+?>
+
+<?php include __DIR__ . '/includes/header.php'; ?>
+
+<section>
+    <h1>Mes projets</h1>
+    <p>Bienvenue sur WeShare. Ici vous pouvez organiser les tâches de colocation, projets d’études, voyages, etc.</p>
+
+    <a href="create_project.php" class="btn-primary">+ Créer un nouveau projet</a>
+</section>
+
+<section class="project-section">
+    <h2>Projets que j’ai créés</h2>
+    <?php if (!$created_projects): ?>
+        <p>Vous n’avez pas encore créé de projet.</p>
+    <?php else: ?>
+        <?php foreach ($created_projects as $project): ?>
+            <article class="project-card">
+                <h3><?= htmlspecialchars($project['name']) ?></h3>
+                <?php if (!empty($project['description'])): ?>
+                    <p class="project-desc"><?= nl2br(htmlspecialchars($project['description'])) ?></p>
+                <?php endif; ?>
+
+                <p class="project-meta">
+                    Créateur : <?= htmlspecialchars($project['creator_name']) ?>
+                    (<?= htmlspecialchars($project['creator_email']) ?>)
+                </p>
+
+                <h4>Membres</h4>
+                <?php if (empty($project['members'])): ?>
+                    <p>Aucun membre invité.</p>
+                <?php else: ?>
+                    <ul>
+                        <?php foreach ($project['members'] as $member): ?>
+                            <li><?= htmlspecialchars($member['name']) ?> - <?= htmlspecialchars($member['email']) ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+
+                <h4>Tâches</h4>
+                <?php if (empty($project['tasks'])): ?>
+                    <p>Aucune tâche définie.</p>
+                <?php else: ?>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Tâche</th>
+                                    <th>Assigné à</th>
+                                    <th>Statut</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($project['tasks'] as $task):
+                                    $is_my_task = (strtolower($task['assigned_to']) === $email);
+                                    ?>
+                                    <tr class="<?= $is_my_task ? 'my-task' : '' ?>">
+                                        <td><?= htmlspecialchars($task['title']) ?></td>
+                                        <td><?= htmlspecialchars($task['assigned_to'] ?: 'Non assigné') ?></td>
+                                        <td>
+                                            <?php if ($is_my_task): ?>
+                                                <form method="post" action="update_task.php">
+                                                    <input type="hidden" name="project_id" value="<?= htmlspecialchars($project['id']) ?>">
+                                                    <input type="hidden" name="task_id" value="<?= htmlspecialchars($task['id']) ?>">
+                                                    <select name="status" onchange="this.form.submit()">
+                                                        <option value="todo" <?= $task['status'] === 'todo' ? 'selected' : '' ?>>À faire
+                                                        </option>
+                                                        <option value="in_progress" <?= $task['status'] === 'in_progress' ? 'selected' : '' ?>>
+                                                            En cours</option>
+                                                        <option value="done" <?= $task['status'] === 'done' ? 'selected' : '' ?>>Terminé
+                                                        </option>
+                                                    </select>
+                                                </form>
+                                            <?php else: ?>
+                                                <?= htmlspecialchars(status_label($task['status'])) ?>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </article>
+        <?php endforeach; ?>
+    <?php endif; ?>
+</section>
+
+<section class="project-section">
+    <h2>Projets où je suis membre</h2>
+    <?php if (!$member_projects): ?>
+        <p>Vous n’êtes membre d’aucun projet pour l’instant.</p>
+    <?php else: ?>
+        <?php foreach ($member_projects as $project): ?>
+            <article class="project-card">
+                <h3><?= htmlspecialchars($project['name']) ?></h3>
+                <?php if (!empty($project['description'])): ?>
+                    <p class="project-desc"><?= nl2br(htmlspecialchars($project['description'])) ?></p>
+                <?php endif; ?>
+
+                <p class="project-meta">
+                    Créateur : <?= htmlspecialchars($project['creator_name']) ?>
+                    (<?= htmlspecialchars($project['creator_email']) ?>)
+                </p>
+
+                <h4>Membres</h4>
+                <?php if (empty($project['members'])): ?>
+                    <p>Aucun membre invité.</p>
+                <?php else: ?>
+                    <ul>
+                        <?php foreach ($project['members'] as $member): ?>
+                            <li><?= htmlspecialchars($member['name']) ?> - <?= htmlspecialchars($member['email']) ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+
+                <h4>Mes tâches dans ce projet</h4>
+                <?php
+                $my_tasks = array_filter($project['tasks'], function ($task) use ($email) {
+                    return strtolower($task['assigned_to']) === $email;
+                });
+                ?>
+
+                <?php if (!$my_tasks): ?>
+                    <p>Aucune tâche ne vous est assignée.</p>
+                <?php else: ?>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Tâche</th>
+                                    <th>Statut</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($my_tasks as $task): ?>
+                                    <tr class="my-task">
+                                        <td><?= htmlspecialchars($task['title']) ?></td>
+                                        <td>
+                                            <form method="post" action="update_task.php">
+                                                <input type="hidden" name="project_id" value="<?= htmlspecialchars($project['id']) ?>">
+                                                <input type="hidden" name="task_id" value="<?= htmlspecialchars($task['id']) ?>">
+                                                <select name="status" onchange="this.form.submit()">
+                                                    <option value="todo" <?= $task['status'] === 'todo' ? 'selected' : '' ?>>À faire
+                                                    </option>
+                                                    <option value="in_progress" <?= $task['status'] === 'in_progress' ? 'selected' : '' ?>>
+                                                        En cours</option>
+                                                    <option value="done" <?= $task['status'] === 'done' ? 'selected' : '' ?>>Terminé
+                                                    </option>
+                                                </select>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </article>
+        <?php endforeach; ?>
+    <?php endif; ?>
+</section>
+
+<?php include __DIR__ . '/includes/footer.php'; ?>
+
+
+'index.php'
+<?php
+$page_title = 'Connexion';
+require_once __DIR__ . '/includes/functions.php';
+
+$errors = [];
+$success_message = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+
+    if ($action === 'login') {
+        $email = $_POST['email'] ?? '';
+        $password = $_POST['password'] ?? '';
+
+        if (!$email || !$password) {
+            $errors[] = 'Veuillez remplir tous les champs de connexion.';
+        } else {
+            $user = authenticate($email, $password);
+            if ($user) {
+                login_user($user);
+                header('Location: dashboard.php');
+                exit;
+            } else {
+                $errors[] = 'Email ou mot de passe incorrect.';
+            }
+        }
+    } elseif ($action === 'register') {
+        $name = $_POST['name'] ?? '';
+        $email = $_POST['email'] ?? '';
+        $password = $_POST['password'] ?? '';
+        $password_confirm = $_POST['password_confirm'] ?? '';
+
+        if (!$name || !$email || !$password || !$password_confirm) {
+            $errors[] = 'Veuillez remplir tous les champs d’inscription.';
+        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $errors[] = 'Email invalide.';
+        } elseif ($password !== $password_confirm) {
+            $errors[] = 'Les deux mots de passe ne correspondent pas.';
+        } elseif (strlen($password) < 6) {
+            $errors[] = 'Le mot de passe doit contenir au moins 6 caractères.';
+        } else {
+            try {
+                $user = create_user($name, $email, $password);
+                $success_message = "Compte créé avec succès. Vous pouvez maintenant vous connecter.";
+            } catch (Exception $e) {
+                $errors[] = $e->getMessage();
+            }
+        }
+    }
+}
+?>
+
+<?php include __DIR__ . '/includes/header.php'; ?>
+
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <h1>Connexion</h1>
+
+        <?php if ($errors): ?>
+            <div class="alert alert-error">
+                <ul>
+                    <?php foreach ($errors as $err): ?>
+                        <li><?= htmlspecialchars($err) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($success_message): ?>
+            <div class="alert alert-success">
+                <?= htmlspecialchars($success_message) ?>
+            </div>
+        <?php endif; ?>
+
+        <form method="post" class="form-block">
+            <input type="hidden" name="action" value="login">
+            <div class="form-group">
+                <label for="login_email">Email</label>
+                <input type="email" id="login_email" name="email" required>
+            </div>
+            <div class="form-group">
+                <label for="login_password">Mot de passe</label>
+                <input type="password" id="login_password" name="password" required>
+            </div>
+            <button type="submit" class="btn-primary">Se connecter</button>
+        </form>
+    </div>
+
+    <div class="auth-card">
+        <h2>Créer un compte</h2>
+        <form method="post" class="form-block">
+            <input type="hidden" name="action" value="register">
+            <div class="form-group">
+                <label for="reg_name">Nom</label>
+                <input type="text" id="reg_name" name="name" required>
+            </div>
+            <div class="form-group">
+                <label for="reg_email">Email</label>
+                <input type="email" id="reg_email" name="email" required>
+            </div>
+            <div class="form-group">
+                <label for="reg_password">Mot de passe</label>
+                <input type="password" id="reg_password" name="password" required>
+            </div>
+            <div class="form-group">
+                <label for="reg_password_confirm">Confirmer le mot de passe</label>
+                <input type="password" id="reg_password_confirm" name="password_confirm" required>
+            </div>
+            <button type="submit" class="btn-secondary">Créer un compte</button>
+        </form>
+    </div>
+</div>
+
+<?php include __DIR__ . '/includes/footer.php'; ?>
+
+
+
+'logout.php'
+<?php
+require_once __DIR__ . '/includes/config.php';
+
+session_unset();
+session_destroy();
+
+header('Location: index.php');
+exit;
+
+
+
+'save_project.php'
+<?php
+require_once __DIR__ . '/includes/functions.php';
+require_login();
+
+$user = current_user();
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Location: create_project.php');
+    exit;
+}
+
+$name = trim($_POST['project_name'] ?? '');
+$description = trim($_POST['project_description'] ?? '');
+
+if ($name === '') {
+    $_SESSION['error'] = "Le nom du projet est obligatoire.";
+    header('Location: create_project.php');
+    exit;
+}
+
+// 处理成员
+$members = [];
+$member_names = $_POST['member_name'] ?? [];
+$member_emails = $_POST['member_email'] ?? [];
+
+for ($i = 0; $i < count($member_emails); $i++) {
+    $m_name = trim($member_names[$i] ?? '');
+    $m_email = trim($member_emails[$i] ?? '');
+    if ($m_email === '' && $m_name === '') {
+        continue;
+    }
+    if (!filter_var($m_email, FILTER_VALIDATE_EMAIL)) {
+        continue; // 简单过滤无效 email
+    }
+    $members[] = [
+        'name' => $m_name ?: $m_email,
+        'email' => strtolower($m_email),
+    ];
+}
+
+// 确保创建人也在成员列表中（按 email 去重）
+$creator_email = strtolower($user['email']);
+$already_in = false;
+foreach ($members as $m) {
+    if (strtolower($m['email']) === $creator_email) {
+        $already_in = true;
+        break;
+    }
+}
+if (!$already_in) {
+    $members[] = [
+        'name' => $user['name'],
+        'email' => $creator_email,
+    ];
+}
+
+// 处理任务
+$tasks = [];
+$task_titles = $_POST['task_title'] ?? [];
+$task_assigned_to = $_POST['task_assigned_to'] ?? [];
+
+for ($i = 0; $i < count($task_titles); $i++) {
+    $title = trim($task_titles[$i] ?? '');
+    $assigned_email = trim($task_assigned_to[$i] ?? '');
+    if ($title === '') {
+        continue;
+    }
+    $tasks[] = [
+        'id' => generate_id('t_'),
+        'title' => $title,
+        'assigned_to' => strtolower($assigned_email),
+        'status' => 'todo',
+    ];
+}
+
+$projects = load_projects();
+
+$project = [
+    'id' => generate_id('p_'),
+    'name' => $name,
+    'description' => $description,
+    'creator_id' => $user['id'],
+    'creator_name' => $user['name'],
+    'creator_email' => $creator_email,
+    'members' => $members,
+    'tasks' => $tasks,
+    'created_at' => date('c'),
+];
+
+$projects[] = $project;
+save_projects($projects);
+
+header('Location: dashboard.php');
+exit;
+
+
+
+'update.task.php'
+<?php
+require_once __DIR__ . '/includes/functions.php';
+require_login();
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Location: dashboard.php');
+    exit;
+}
+
+$project_id = $_POST['project_id'] ?? '';
+$task_id = $_POST['task_id'] ?? '';
+$status = $_POST['status'] ?? 'todo';
+
+$allowed_status = ['todo', 'in_progress', 'done'];
+if (!in_array($status, $allowed_status, true)) {
+    $status = 'todo';
+}
+
+$projects = load_projects();
+$changed = false;
+
+foreach ($projects as &$project) {
+    if ($project['id'] !== $project_id) {
+        continue;
+    }
+    foreach ($project['tasks'] as &$task) {
+        if ($task['id'] === $task_id) {
+            $task['status'] = $status;
+            $changed = true;
+            break 2;
+        }
+    }
+}
+
+if ($changed) {
+    save_projects($projects);
+}
+
+header('Location: dashboard.php');
+exit;
+
+
+
+
+'assets/app.js'
+function addMemberRow() {
+    const container = document.getElementById('members-container');
+    if (!container) return;
+
+    const div = document.createElement('div');
+    div.className = 'member-row';
+    div.innerHTML = `
+        <input type="text" name="member_name[]" placeholder="Nom du membre">
+        <input type="email" name="member_email[]" placeholder="Email du membre">
+    `;
+    container.appendChild(div);
+}
+
+function addTaskRow() {
+    const container = document.getElementById('tasks-container');
+    if (!container) return;
+
+    const div = document.createElement('div');
+    div.className = 'task-row';
+    div.innerHTML = `
+        <input type="text" name="task_title[]" placeholder="Titre de la tâche">
+        <input type="email" name="task_assigned_to[]" placeholder="Email de la personne responsable (facultatif)">
+    `;
+    container.appendChild(div);
+}
+
+
+
+'assets/style.css'
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f5f5f7;
+    color: #222;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 16px;
+}
+
+/* Header */
+
+.main-header {
+    background: #ffffff;
+    border-bottom: 1px solid #e2e2e2;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+}
+
+.logo a {
+    font-weight: 700;
+    font-size: 1.2rem;
+}
+
+.main-nav a {
+    margin-left: 16px;
+    font-size: 0.95rem;
+}
+
+.user-label {
+    margin-left: 16px;
+    font-style: italic;
+}
+
+/* Main */
+
+.main-content {
+    padding: 24px 0 40px;
+}
+
+/* Auth cards */
+
+.auth-wrapper {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    margin-top: 24px;
+}
+
+.auth-card {
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+
+.auth-card h1,
+.auth-card h2 {
+    margin-top: 0;
+}
+
+/* Forms */
+
+.form-block {
+    margin-top: 12px;
+}
+
+.form-group {
+    margin-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+    padding: 8px 10px;
+    border: 1px solid #d0d0d0;
+    border-radius: 8px;
+    font: inherit;
+}
+
+.form-group textarea {
+    resize: vertical;
+}
+
+/* Buttons */
+
+.btn-primary,
+.btn-secondary,
+.btn-logout,
+.btn-link {
+    display: inline-block;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: #fff;
+}
+
+.btn-secondary {
+    background: #e9ecef;
+    color: #111;
+}
+
+.btn-logout {
+    background: #ff4d4f;
+    color: #fff;
+}
+
+.btn-link {
+    background: transparent;
+    color: #007bff;
+    padding-left: 0;
+}
+
+/* Alerts */
+
+.alert {
+    padding: 10px 12px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+}
+
+.alert-error {
+    background: #ffe3e3;
+    color: #8b0000;
+}
+
+.alert-success {
+    background: #e6ffea;
+    color: #256029;
+}
+
+/* Project cards */
+
+.project-section {
+    margin-top: 32px;
+}
+
+.project-card {
+    background: #ffffff;
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+    margin-bottom: 16px;
+}
+
+.project-card h3 {
+    margin-top: 0;
+}
+
+.project-desc {
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+}
+
+.project-meta {
+    font-size: 0.85rem;
+    color: #555;
+}
+
+/* Tables */
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin-top: 8px;
+}
+
+th,
+td {
+    border-bottom: 1px solid #eee;
+    padding: 6px 4px;
+    text-align: left;
+}
+
+th {
+    font-weight: 600;
+}
+
+.my-task {
+    background: #e8f5ff;
+}
+
+/* Members & tasks rows */
+
+.member-row,
+.task-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.member-row input,
+.task-row input {
+    flex: 1;
+}
+
+/* Form page */
+
+.form-page h1 {
+    margin-top: 0;
+}
+
+.hint {
+    font-size: 0.85rem;
+    color: #555;
+}
+
+.form-actions {
+    margin-top: 16px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+/* Footer */
+
+.main-footer {
+    border-top: 1px solid #ddd;
+    padding: 14px 0;
+    background: #ffffff;
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+
+
+'data/projects.json'
+[]
+
+
+
+'data/user.json'
+[]
+
+
+
+'includes/config.php'
+<?php
+// start session
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// data file path constants
+define('DATA_DIR', __DIR__ . '/../data');
+define('USERS_FILE', DATA_DIR . '/users.json');
+define('PROJECTS_FILE', DATA_DIR . '/projects.json');
+
+
+
+
+'includes/footer.php'
+</main>
+<footer class="main-footer">
+    <div class="container">
+        <p>WeShare - Répartition équitable des tâches</p>
+    </div>
+</footer>
+<script src="assets/app.js"></script>
+</body>
+
+</html>
+
+
+
+'includes/functions.php'
+<?php
+require_once __DIR__ . '/config.php';
+
+/**
+ * JSON file read/write utilities
+ */
+function load_json(string $file): array
+{
+    if (!file_exists($file)) {
+        return [];
+    }
+    $json = file_get_contents($file);
+    $data = json_decode($json, true);
+    return is_array($data) ? $data : [];
+}
+
+function save_json(string $file, array $data): void
+{
+    file_put_contents(
+        $file,
+        json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+    );
+}
+
+/**
+ * User-related functions
+ */
+function load_users(): array
+{
+    return load_json(USERS_FILE);
+}
+
+function save_users(array $users): void
+{
+    save_json(USERS_FILE, $users);
+}
+
+function find_user_by_email(string $email): ?array
+{
+    $users = load_users();
+    $email = strtolower(trim($email));
+    foreach ($users as $user) {
+        if (strtolower($user['email']) === $email) {
+            return $user;
+        }
+    }
+    return null;
+}
+
+function create_user(string $name, string $email, string $password): array
+{
+    $users = load_users();
+
+    if (find_user_by_email($email)) {
+        throw new Exception("Cet email est déjà utilisé.");
+    }
+
+    $user = [
+        'id' => uniqid('u_', true),
+        'name' => trim($name),
+        'email' => strtolower(trim($email)),
+        'password' => password_hash($password, PASSWORD_DEFAULT),
+    ];
+
+    $users[] = $user;
+    save_users($users);
+
+    return $user;
+}
+
+function authenticate(string $email, string $password): ?array
+{
+    $user = find_user_by_email($email);
+    if (!$user) {
+        return null;
+    }
+    if (!password_verify($password, $user['password'])) {
+        return null;
+    }
+    return $user;
+}
+
+function login_user(array $user): void
+{
+    $_SESSION['user'] = [
+        'id' => $user['id'],
+        'name' => $user['name'],
+        'email' => $user['email'],
+    ];
+}
+
+function current_user(): ?array
+{
+    return $_SESSION['user'] ?? null;
+}
+
+function require_login(): void
+{
+    if (!current_user()) {
+        header('Location: index.php');
+        exit;
+    }
+}
+
+/**
+ * Project-related functions
+ */
+function load_projects(): array
+{
+    return load_json(PROJECTS_FILE);
+}
+
+function save_projects(array $projects): void
+{
+    save_json(PROJECTS_FILE, $projects);
+}
+
+function generate_id(string $prefix = ''): string
+{
+    return uniqid($prefix, true);
+}
+
+/**
+ * Get human-readable status label
+ */
+function status_label(string $status): string
+{
+    switch ($status) {
+        case 'in_progress':
+            return 'En cours';
+        case 'done':
+            return 'Terminé';
+        case 'todo':
+        default:
+            return 'À faire';
+    }
+}
+
+
+
+
+'includes/header.php'
+<?php
+require_once __DIR__ . '/functions.php';
+$user = current_user();
+$page_title = $page_title ?? 'WeShare';
+?>
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <title><?= htmlspecialchars($page_title) ?> - WeShare</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+
+<body>
+    <header class="main-header">
+        <div class="container header-inner">
+            <div class="logo">
+                <a href="dashboard.php">WeShare</a>
+            </div>
+            <nav class="main-nav">
+                <?php if ($user): ?>
+                    <a href="dashboard.php">Mes projets</a>
+                    <a href="create_project.php">Créer un projet</a>
+                    <span class="user-label">Bonjour, <?= htmlspecialchars($user['name']) ?></span>
+                    <a href="logout.php" class="btn-logout">Déconnexion</a>
+                <?php else: ?>
+                    <a href="index.php">Connexion</a>
+                <?php endif; ?>
+            </nav>
+        </div>
+    </header>
+    <main class="container main-content">
+
