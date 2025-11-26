@@ -28,6 +28,15 @@ foreach ($projects as $project) {
         $member_projects[] = $project;
     }
 }
+
+// l'ordre : actifs d'abord
+usort($created_projects, function($a, $b) {
+    return strcmp($a['status'] ?? 'active', $b['status'] ?? 'active');
+});
+
+usort($member_projects, function($a, $b) {
+    return strcmp($a['status'] ?? 'active', $b['status'] ?? 'active');
+});
 ?>
 
 <?php include __DIR__ . '/includes/header.php'; ?>
@@ -47,6 +56,19 @@ foreach ($projects as $project) {
         <?php foreach ($created_projects as $project): ?>
             <article class="project-card">
                 <h3><?= htmlspecialchars($project['name']) ?></h3>
+                <!-- Clôturation -->
+                 <?php if (($project['status'] ?? 'active') !== 'done'): ?>
+                    <form method="post" action="cloturer_project.php" style="margin-top:8px;">
+                        <input type="hidden" name="project_id" value="<?= htmlspecialchars($project['id']) ?>">
+                        <button type="submit" class="btn-secondary"
+                                onclick="return confirm('Êtes-vous sûr de vouloir clôturer ce projet ?')">
+                            Clôturer le projet
+                        </button>
+                    </form>
+                <?php else: ?>
+                    <span style="color: green; font-weight: bold;">(Terminé)</span>
+                <?php endif; ?>
+                
                 <?php if (!empty($project['description'])): ?>
                     <p class="project-desc"><?= nl2br(htmlspecialchars($project['description'])) ?></p>
                 <?php endif; ?>
