@@ -85,6 +85,7 @@ $project = [
     'members' => $members,
     'tasks' => $tasks,
     'created_at' => date('c'),
+    'status' => 'active',
 ];
 
 $projects[] = $project;
