@@ -24,11 +24,25 @@ $user = current_user();
                 placeholder="Ex : Organisation des tâches ménagères de l’appartement..."></textarea>
         </div>
 
+
         <h2>Membres invités</h2>
         <p class="hint">
-            Invitez vos colocataires, camarades de classe ou amis pour le voyage.
+            Invitez vos colocataires, camarades de classe ou amis pour le projet.
             Vous êtes automatiquement inclus comme créateur.
         </p>
+
+        <!--new things added -->
+        <button type="button" class="btn-secondary invite-link-btn" onclick="toggleInviteLink()">
+            Afficher le lien d’invitation
+        </button>
+        <div id="invite-link-box" class="invite-link-box" style="display: none;">
+            <p>Partagez ce lien avec les membres que vous avez ajoutés&nbsp;:</p>
+            <code>https://weshare.alwaysdata.net/</code>
+            <p class="hint">
+                Il suffit de copier ce lien et de l’envoyer à vos colocataires / camarades / amis.
+                Ils pourront créer un compte ou se connecter, puis voir ce projet dans leur tableau de bord.
+            </p>
+        </div>
 
         <div id="members-container">
             <div class="member-row">
@@ -37,6 +51,7 @@ $user = current_user();
             </div>
         </div>
         <button type="button" class="btn-secondary" onclick="addMemberRow()">+ Ajouter un membre</button>
+
 
         <h2>Tâches du projet</h2>
         <p class="hint">

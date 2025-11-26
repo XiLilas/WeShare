@@ -30,11 +30,11 @@ foreach ($projects as $project) {
 }
 
 // l'ordre : actifs d'abord
-usort($created_projects, function($a, $b) {
+usort($created_projects, function ($a, $b) {
     return strcmp($a['status'] ?? 'active', $b['status'] ?? 'active');
 });
 
-usort($member_projects, function($a, $b) {
+usort($member_projects, function ($a, $b) {
     return strcmp($a['status'] ?? 'active', $b['status'] ?? 'active');
 });
 ?>
@@ -57,18 +57,18 @@ usort($member_projects, function($a, $b) {
             <article class="project-card">
                 <h3><?= htmlspecialchars($project['name']) ?></h3>
                 <!-- Clôturation -->
-                 <?php if (($project['status'] ?? 'active') !== 'done'): ?>
+                <?php if (($project['status'] ?? 'active') !== 'done'): ?>
                     <form method="post" action="cloturer_project.php" style="margin-top:8px;">
                         <input type="hidden" name="project_id" value="<?= htmlspecialchars($project['id']) ?>">
                         <button type="submit" class="btn-secondary"
-                                onclick="return confirm('Êtes-vous sûr de vouloir clôturer ce projet ?')">
+                            onclick="return confirm('Êtes-vous sûr de vouloir clôturer ce projet ?')">
                             Clôturer le projet
                         </button>
                     </form>
                 <?php else: ?>
                     <span style="color: green; font-weight: bold;">(Terminé)</span>
                 <?php endif; ?>
-                
+
                 <?php if (!empty($project['description'])): ?>
                     <p class="project-desc"><?= nl2br(htmlspecialchars($project['description'])) ?></p>
                 <?php endif; ?>
@@ -83,13 +83,21 @@ usort($member_projects, function($a, $b) {
                     <p>Aucun membre invité.</p>
                 <?php else: ?>
                     <ul>
-                        <?php foreach ($project['members'] as $member): ?>
-                            <li><?= htmlspecialchars($member['name']) ?> - <?= htmlspecialchars($member['email']) ?></li>
+                        <?php foreach ($project['members'] as $member):
+                            $is_creator_member = (strtolower($member['email']) === strtolower($project['creator_email']));
+                            ?>
+                            <li>
+                                <?= htmlspecialchars($member['name']) ?> - <?= htmlspecialchars($member['email']) ?>
+                                <?php if (!$is_creator_member): ?>
+                                    <span class="badge badge-pending">Invitation en attente</span>
+                                <?php endif; ?>
+                            </li>
                         <?php endforeach; ?>
                     </ul>
                 <?php endif; ?>
 
-        
+
+
                 <h4>Tâches</h4>
                 <?php if (empty($project['tasks'])): ?>
                     <p>Aucune tâche définie.</p>
@@ -114,7 +122,8 @@ usort($member_projects, function($a, $b) {
                                         <td><?= htmlspecialchars($task['title']) ?></td>
                                         <td><?= htmlspecialchars($task['assigned_to'] ?: 'Non assigné') ?></td>
                                         <td>
-                                            <?php if ($is_my_task && !$is_done): ?> <!-- si le projet n'est pas terminé, permettre la modification -->
+                                            <?php if ($is_my_task && !$is_done): ?>
+                                                <!-- si le projet n'est pas terminé, permettre la modification -->
                                                 <form method="post" action="update_task.php">
                                                     <input type="hidden" name="project_id" value="<?= htmlspecialchars($project['id']) ?>">
                                                     <input type="hidden" name="task_id" value="<?= htmlspecialchars($task['id']) ?>">

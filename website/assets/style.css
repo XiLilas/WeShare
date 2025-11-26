@@ -125,6 +125,29 @@ a {
     cursor: pointer;
 }
 
+.invite-link-btn {
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+.invite-link-box {
+    background: #f0f4ff;
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+}
+
+.invite-link-box code {
+    display: inline-block;
+    padding: 4px 8px;
+    background: #fff;
+    border-radius: 6px;
+    border: 1px dashed #6574cd;
+    font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+}
+
+
 .btn-primary {
     background: #007bff;
     color: #fff;
@@ -220,6 +243,21 @@ th {
 .my-task {
     background: #e8f5ff;
 }
+
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    margin-left: 6px;
+}
+
+.badge-pending {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
 
 /* Members & tasks rows */
 

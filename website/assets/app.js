@@ -23,3 +23,14 @@ function addTaskRow() {
     `;
     container.appendChild(div);
 }
+
+function toggleInviteLink() {
+    const box = document.getElementById('invite-link-box');
+    if (!box) return;
+
+    if (box.style.display === 'none' || box.style.display === '') {
+        box.style.display = 'block';
+    } else {
+        box.style.display = 'none';
+    }
+}
