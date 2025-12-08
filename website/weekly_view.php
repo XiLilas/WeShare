@@ -62,10 +62,20 @@ foreach ($projects as $project) {
     
     // Filter tasks for this day
     foreach ($project['tasks'] as $task) {
+        // Check view mode 
+        $viewMode = $_GET['view'] ?? 'mine';
+        $taskAssignedTo = strtolower($task['assigned_to'] ?? '');
+
         // Only show tasks assigned to current user
-        if (strtolower($task['assigned_to']) !== $email) {
-            continue;
-        }
+       //if (strtolower($task['assigned_to']) !== $email) {
+        //    continue;
+        //}
+        // Show tasks depending on view mode:
+        if ($viewMode === 'mine') {
+            // only my tasks
+            if ($taskAssignedTo !== $email) continue;
+        } 
+        // view === 'all' → show everyone's tasks (no filtering)
         
         // Check if task is for this day
         $isForToday = false;
@@ -144,6 +154,21 @@ $avgProgress = $barTasksCount > 0 ? round($totalProgress / $barTasksCount) : 0;
 
 <section style="padding: 20px; max-width: 1200px; margin: 0 auto;">
     <h1>📅 Vue semaine</h1>
+
+    <!-- View all members toggle -->
+    <div style="margin: 10px 0;">
+    <form method="get" action="weekly_view.php" style="display:flex;align-items:center;gap:8px;">
+        <input type="hidden" name="date" value="<?= htmlspecialchars($selectedDate->format('Y-m-d')) ?>">
+        
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="checkbox" name="view" value="all"
+                <?= (($_GET['view'] ?? 'mine') === 'all') ? 'checked' : '' ?>
+                onchange="this.form.submit()">
+            <span>Voir les tâches de tous les membres</span>
+        </label>
+    </form>
+    </div>
+
     
     <!-- Current date info -->
     <div style="background: #f0f0f0; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
@@ -163,7 +188,7 @@ $avgProgress = $barTasksCount > 0 ? round($totalProgress / $barTasksCount) : 0;
             <p style="color: #007bff; font-weight: bold;">Aujourd'hui</p>
         <?php endif; ?>
         <div style="margin-top: 10px;">
-            <a href="day_view.php?date=<?= $selectedDate->format('Y-m-d') ?>" class="btn-secondary" style="display: inline-block; padding: 8px 16px; background: #007bff; color: white; text-decoration: none; border-radius: 4px;">Vue jour détaillée →</a>
+            <a href="day_view.php?date=<?= $selectedDate->format('Y-m-d') ?>&view=<?= $viewMode ?>" class="btn-secondary" style="display: inline-block; padding: 8px 16px; background: #007bff; color: white; text-decoration: none; border-radius: 4px;">Vue jour détaillée →</a>
         </div>
     </div>
 
@@ -185,8 +210,8 @@ $avgProgress = $barTasksCount > 0 ? round($totalProgress / $barTasksCount) : 0;
                 $bgColor = $isSelected ? '#007bff' : ($isToday ? '#e8f4f8' : '#f9f9f9');
                 $textColor = $isSelected ? 'white' : 'black';
                 $borderColor = $isToday ? '2px solid #007bff' : '1px solid #ddd';
-                
-                echo '<a href="?date=' . $date . '" style="text-decoration: none; display: flex; flex-direction: column; align-items: center; padding: 10px 15px; background: ' . $bgColor . '; border: ' . $borderColor . '; border-radius: 6px; cursor: pointer; color: ' . $textColor . '; font-weight: ' . ($isToday ? 'bold' : 'normal') . '; min-width: 70px; text-align: center;">';
+                // Get view mode for link
+                echo '<a href="?date=' . $date . '&view=' . urlencode($viewMode) . '" style="text-decoration: none; display: flex; flex-direction: column; align-items: center; padding: 10px 15px; background: ' . $bgColor . '; border: ' . $borderColor . '; border-radius: 6px; cursor: pointer; color: ' . $textColor . '; font-weight: ' . ($isToday ? 'bold' : 'normal') . '; min-width: 70px; text-align: center;">';
                 echo '<small>' . strtoupper($dayShort) . '</small>';
                 echo '<strong style="font-size: 1.2em;">' . $dayNum . '</strong>';
                 echo '</a>';
@@ -240,12 +265,19 @@ $avgProgress = $barTasksCount > 0 ? round($totalProgress / $barTasksCount) : 0;
                     ];
                     $statusBgColor = $statusColors[$task['status'] ?? 'todo'] ?? '#f9f9f9';
                 ?>
+                <?php
+                $userInfo = find_user_by_email($task['assigned_to']);
+                $assignedName = $userInfo['name'] ?? $task['assigned_to'];
+                ?>
                     <div style="background: <?= $isComplete ? '#e8f8e8' : $statusBgColor ?>; border-left: 4px solid <?= $isComplete ? '#4caf50' : '#007bff' ?>; padding: 15px; border-radius: 6px;" data-task-id="<?= htmlspecialchars($task['id']) ?>" data-date="<?= htmlspecialchars($selectedDate->format('Y-m-d')) ?>">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
                             <div>
                                 <h4 style="margin: 0 0 5px 0; font-size: 1.1em;"><?= htmlspecialchars($task['title']) ?></h4>
                                 <small style="color: #666;">
                                     Projet: <strong><?= htmlspecialchars($project['name']) ?></strong>
+                                </small>
+                                <small style="color: #666;"> <!-- nom du membre -->
+                                    👤 <?= htmlspecialchars($assignedName) ?>
                                 </small>
                             </div>
                             <span style="background: <?= $isComplete ? '#4caf50' : '#007bff' ?>; color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.85em; white-space: nowrap;">
@@ -275,7 +307,7 @@ $avgProgress = $barTasksCount > 0 ? round($totalProgress / $barTasksCount) : 0;
                         <?php endif; ?>
 
                         <div style="margin-top: 12px; display: flex; gap: 10px;">
-                            <a href="day_view.php?date=<?= $selectedDate->format('Y-m-d') ?>" class="btn-secondary" style="display: inline-block; padding: 6px 12px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-size: 0.9em;">Voir jour</a>
+                            <a href="day_view.php?date=<?= $selectedDate->format('Y-m-d') ?>&view=<?= $viewMode ?>" class="btn-secondary" style="display: inline-block; padding: 6px 12px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-size: 0.9em;">Voir jour</a>
                             <?php 
                             $dailyProgress = get_daily_progress($task, $selectedDate->format('Y-m-d'));
                             $isDayComplete = $dailyProgress >= 100;
@@ -344,8 +376,8 @@ $avgProgress = $barTasksCount > 0 ? round($totalProgress / $barTasksCount) : 0;
                 $bgColor = $isSelected ? '#007bff' : ($isToday ? '#e8f4f8' : 'white');
                 $textColor = $isSelected ? 'white' : 'black';
                 $border = $isToday ? '2px solid #007bff' : '1px solid #ddd';
-                
-                echo '<a href="?date=' . $dateStr . '" style="text-decoration: none; padding: 12px; background: ' . $bgColor . '; border: ' . $border . '; border-radius: 6px; color: ' . $textColor . '; text-align: center; cursor: pointer;">';
+                // Get view mode for link
+                echo '<a href="?date=' . $dateStr . '&view=' . $viewMode . '" style="text-decoration: none; padding: 12px; background: ' . $bgColor . '; border: ' . $border . '; border-radius: 6px; color: ' . $textColor . '; text-align: center; cursor: pointer;">';
                 echo '<div style="font-weight: bold; font-size: 0.9em;">' . strtoupper($dayShort) . '</div>';
                 echo '<div style="font-size: 1.3em; font-weight: bold;">' . $dayNum . '</div>';
                 echo '<div style="font-size: 0.85em; margin-top: 5px;">' . $doneCount . '/' . $tasksCount . '</div>';
