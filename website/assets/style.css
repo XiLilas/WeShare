@@ -49,6 +49,16 @@ a {
     font-size: 0.95rem;
 }
 
+.questionnaire-link {
+    color: #667eea;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.questionnaire-link:hover {
+    color: #764ba2;
+}
+
 .user-label {
     margin-left: 16px;
     font-style: italic;
